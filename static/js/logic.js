@@ -1,105 +1,109 @@
-var earthquakeURL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson"
-var tectonicPlatesURL = "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json"
+// Store our API endpoint inside queryUrl
+var queryUrl = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson";
 
-d3.json(earthquakeURL, function (data) {
+// Perform a GET request to the query URL
+d3.json(queryUrl, function (data) {
     createFeatures(data.features);
 });
- 
+
 function createFeatures(earthquakeData) {
+    function onEachFeature(feature, layer) {
+        layer.bindPopup("<h3>" + "Magnitude  " + feature.properties.mag +
+            "</h3><hr><p>" + "Earthquake Location:  " + feature.properties.place + "</p>");
+    }
+
+    // Create a GeoJSON layer containing the features array on the earthquakeData object
+
     var earthquakes = L.geoJSON(earthquakeData, {
-        onEachFeature: function (feature, layer) {
-            layer.bindPopup("<h3>Magnitude: " + feature.properties.mag + "</h3><h3>Location: " + feature.properties.place +
-                "</h3><hr><p>" + new Date(feature.properties.time) + "</p>");
-        },
 
         pointToLayer: function (feature, latlng) {
-            return new L.circle(latlng,
-                {
-                    radius: getRadius(feature.properties.mag),
-                    fillColor: getColor(feature.properties.mag),
-                    fillOpacity: .5,
-                    color: "black",
-                    stroke: true,
-                    weight: .8
-                })
-        }
+            return L.circleMarker(latlng, {
+                // radius: GetSize(feature.properties.mag),
+                radius: 1,
+                // fillColor: colorRange(feature.properties.mag),
+                fillColor: getColor(feature.properties.mag),
+                color: "orange",
+                weight: 0.5,
+                opacity: 0.5,
+                fillOpacity: 0.8
+            });
+        },
+
+        // Run the onEachFeature function once for each piece of data in the array
+        onEachFeature: onEachFeature
     });
 
+    // Sending our earthquakes layer to the createMap function
     createMap(earthquakes);
 }
 
+// Define function to create a map
 function createMap(earthquakes) {
 
-    // Define the map layers
-    var airmap = L.tileLayer("https://api.mapbox.com/styles/v1/mfatih72/ck30s2f5b19ws1cpmmw6zfumm/tiles/256/{z}/{x}/{y}?" +
-        "access_token=pk.eyJ1IjoibWtpbmdyb3NlIiwiYSI6ImNrZ2gzeGVwajExYjIyeXJyMXZrYXZtczcifQ.y6Vy6aJTf4oO6b70EypqdA");
+    // Define streetmap and darkmap layers
+    var streetmap = L.tileLayer("https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}", {
+        attribution: "Map data &copy; <a href=\"https://www.openstreetmap.org/\">OpenStreetMap</a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>, Imagery © <a href=\"https://www.mapbox.com/\">Mapbox</a>",
+        maxZoom: 18,
+        id: "mapbox/streets-v11",
+        accessToken: API_KEY
+    });
 
+    var darkmap = L.tileLayer("https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}", {
+        attribution: "Map data &copy; <a href=\"https://www.openstreetmap.org/\">OpenStreetMap</a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>, Imagery © <a href=\"https://www.mapbox.com/\">Mapbox</a>",
+        maxZoom: 18,
+        id: "mapbox/streets-v11",
+        accessToken: API_KEY
+    });
 
-    var satellite = L.tileLayer("https://api.mapbox.com/styles/v1/mfatih72/ck30r72r818te1cruud5wk075/tiles/256/{z}/{x}/{y}?" +
-        "access_token=pk.eyJ1IjoibWtpbmdyb3NlIiwiYSI6ImNrZ2gzeGVwajExYjIyeXJyMXZrYXZtczcifQ.y6Vy6aJTf4oO6b70EypqdA");
-
-
-    var lightMap = L.tileLayer("https://api.mapbox.com/styles/v1/mfatih72/ck30rkku519fu1drmiimycohl/tiles/256/{z}/{x}/{y}?" +
-        "access_token=pk.eyJ1IjoibWtpbmdyb3NlIiwiYSI6ImNrZ2gzeGVwajExYjIyeXJyMXZrYXZtczcifQ.y6Vy6aJTf4oO6b70EypqdA");
-
-    // Define base maps
+    // Define a baseMaps object to hold our base layers
     var baseMaps = {
-        "LightMap": lightMap,
-        "AirMap": airmap,
-        "Satellite": satellite
+        "Street Map": streetmap,
+        "Dark Map": darkmap
     };
 
-    // Create tectonic layer
-    var tectonicPlates = new L.LayerGroup();
-
-    // Create overlay object to hold overlay layer
+    // Create overlay object to hold our overlay layer
     var overlayMaps = {
-        "Earthquakes": earthquakes,
-        "Tectonic Plates": tectonicPlates
+        Earthquakes: earthquakes
     };
 
-    // Create our map
-    var myMap = L.map("map", {
-        center: [40.7, -94.5],
-        zoom: 5,
-        layers: [lightMap, earthquakes, tectonicPlates]
+    // Create our map, giving it the streetmap and earthquakes layers to display on load
+    var myMap = L.map("mapid", {
+        center: [
+            37.09, -95.71
+        ],
+        zoom: 4,
+        layers: [streetmap, earthquakes]
     });
 
-    // Add tectonic plates data
-    d3.json(tectonicPlatesURL, function (tectonicData) {
-        L.geoJson(tectonicData, {
-            color: "blue",
-            weight: 2
-        })
-            .addTo(tectonicPlates);
-    });
-
-    //Add layer control to map
+    // Create a layer control
+    // Pass in our baseMaps and overlayMaps
+    // Add the layer control to the map
     L.control.layers(baseMaps, overlayMaps, {
         collapsed: false
     }).addTo(myMap);
 
-    // Create legend
+
+    // Create the legend
     var legend = L.control({
-        position: "bottomleft"
+        position: "bottomright"
     });
 
-    legend.onAdd = function (myMap) {
-        var div = L.DomUtil.create("div", "info legend"),
-            grades = [0, 1, 2, 3, 4, 5],
-            labels = [];
 
-        // Create legend
-        for (var i = 0; i < grades.length; i++) {
-            div.innerHTML +=
-                '<i style="background:' + getColor(grades[i] + 1) + '"></i> ' +
-                grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+    legend.onAdd = function (myMap) {
+        var legend_loc = L.DomUtil.create("div", "info legend"),
+            levels = [0, 1, 2, 3, 4, 5]
+
+        // Loop through magnitude intervals and generate a label with a colored square for each interval
+        for (var i = 0; i < levels.length; i++) {
+            legend_loc.innerHTML += '<i style="background:' + getColor(levels[i]) + '"></i> ' + [i] + (levels[i + 1] ? '&ndash;' +
+                levels[i + 1] + '<br>' : '+');
         }
-        return div;
+        return legend_loc;
     };
+
+    // Add legend to the map
     legend.addTo(myMap);
 }
-
 // Create color function
 function getColor(magnitude) {
     if (magnitude > 5) {
@@ -121,3 +125,4 @@ function getColor(magnitude) {
 function getRadius(magnitude) {
     return magnitude * 20000;
 };
+
